@@ -1,0 +1,4 @@
+Flask
+Twilio
+gunicorn
+python-dotenv
