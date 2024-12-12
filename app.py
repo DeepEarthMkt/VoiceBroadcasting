@@ -7,16 +7,16 @@ from twilio.rest import Client
 # Load environment variables from Heroku Config Vars
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-UPLOAD_FOLDER = './uploads'
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
 ALLOWED_EXTENSIONS = {'csv', 'mp3', 'wav'}
+
+# Ensure the uploads directory exists
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 class VoiceBroadcaster:
-    """
-    A class to send a voice broadcast to a list of contacts using Twilio.
-    """
     def __init__(self, account_sid: str, auth_token: str, from_number: str):
         self.client = Client(account_sid, auth_token)
         self.from_number = from_number
@@ -99,5 +99,5 @@ def upload_file():
         return 'Invalid file type. Please upload a CSV file and an MP3/WAV file.'
 
 if __name__ == "__main__":
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure the uploads folder exists
     app.run(debug=True)
