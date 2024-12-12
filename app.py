@@ -25,11 +25,15 @@ class VoiceBroadcaster:
         call_responses = []
         for contact in contacts:
             try:
-                call = self.client.calls.create(
-                    to=contact,
-                    from_=self.from_number,
-                    url=message_url
-                )
+    call = self.client.calls.create(
+        to=contact,
+        from_=self.from_number,
+        url=message_url
+    )
+    print(f"Call initiated to {contact} - Status: {call.status} - Call SID: {call.sid}")
+except Exception as e:
+    print(f"Failed to call {contact} - Error: {str(e)}")
+
                 call_responses.append({
                     'to': contact,
                     'status': call.status,
