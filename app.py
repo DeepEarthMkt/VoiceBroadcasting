@@ -7,14 +7,7 @@ from twilio.rest import Client
 # Load environment variables from Heroku Config Vars
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-UPLOAD_FOLDER = './uploads'
-ALLOWED_EXTENSIONS = {'csv', 'mp3', 'wav'}
-
-# Ensure the uploads directory exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 class VoiceBroadcaster:
     """
@@ -31,6 +24,7 @@ class VoiceBroadcaster:
         call_responses = []
         for contact in contacts:
             try:
+                print(f"Attempting to call {contact} from {self.from_number} using URL: {message_url}")
                 call = self.client.calls.create(
                     to=contact,
                     from_=self.from_number,
@@ -57,24 +51,20 @@ class VoiceBroadcaster:
             with open(file_path, mode='r') as file:
                 reader = csv.reader(file)
                 for row in reader:
-                    if row:
-                        contacts.append(row[0])
+                    if row and len(row) > 0:
+                        phone_number = row[0].strip()  # Assuming phone numbers are in the 1st column
+                        if not phone_number.startswith('+'):
+                            phone_number = '+1' + phone_number  # Automatically add +1 for US numbers
+                        contacts.append(phone_number)
         except Exception as e:
             print(f"Error loading contacts from {file_path}: {str(e)}")
         return contacts
 
 
-def allowed_file(filename):
-    """
-    Check if the file is an allowed type (CSV, MP3, or WAV).
-    """
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
 @app.route('/')
 def upload_form():
     """
-    Renders the file upload form.
+    Renders the form to upload the CSV file and submit the public URL.
     """
     return render_template('upload.html')
 
@@ -82,43 +72,38 @@ def upload_form():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     """
-    Handles the file upload process.
+    Handles the form submission for the CSV file and audio URL.
     """
-    if 'file' not in request.files or 'audio_file' not in request.files:
-        return 'No file part'
-    
+    if 'file' not in request.files:
+        return 'No CSV file part'
+
     file = request.files['file']
-    audio_file = request.files['audio_file']
     from_number = request.form.get('from_number')
+    audio_url = request.form.get('audio_url')
     
     if not from_number:
         return 'No "From" phone number specified'
     
-    if file.filename == '' or audio_file.filename == '':
-        return 'No selected file'
+    if not audio_url or not audio_url.startswith('http'):
+        return 'Invalid audio URL. Please provide a valid public URL (e.g., https://example.com/audio.mp3).'
     
-    if file and allowed_file(file.filename) and audio_file and audio_file.filename.endswith(('.mp3', '.wav')):
+    if file.filename == '':
+        return 'No selected CSV file'
+    
+    if file:
         csv_filename = secure_filename(file.filename)
-        audio_filename = secure_filename(audio_file.filename)
-        
-        csv_path = os.path.join(app.config['UPLOAD_FOLDER'], csv_filename)
-        audio_path = os.path.join(app.config['UPLOAD_FOLDER'], audio_filename)
-        
+        csv_path = os.path.join('/tmp', csv_filename)  # Store temporarily in /tmp
         file.save(csv_path)
-        audio_file.save(audio_path)
         
         broadcaster = VoiceBroadcaster(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, from_number)
         contacts = broadcaster.load_contacts_from_csv(csv_path)
         
-        message_url = f"https://your-app-name.herokuapp.com/uploads/{audio_filename}"
-        
-        results = broadcaster.send_voice_broadcast(contacts, message_url)
+        results = broadcaster.send_voice_broadcast(contacts, audio_url)
         
         return f"Broadcast sent successfully to {len(contacts)} contacts."
     else:
-        return 'Invalid file type. Please upload a CSV file and an MP3/WAV file.'
+        return 'Invalid file type. Please upload a CSV file.'
 
 
 if __name__ == "__main__":
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure the uploads folder exists
     app.run(debug=True)
