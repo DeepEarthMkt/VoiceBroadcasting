@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload CSV</title>
+</head>
+<body>
+    <h1>Upload CSV File</h1>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <label for="from_number">Enter From Phone Number:</label><br>
+        <input type="text" name="from_number" placeholder="+1234567890" required><br><br>
+        <input type="file" name="file" accept=".csv">
+        <button type="submit">Upload</button>
+    </form>
+</body>
+</html>
